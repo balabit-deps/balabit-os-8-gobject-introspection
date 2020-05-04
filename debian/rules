@@ -1,0 +1,38 @@
+#!/usr/bin/make -f
+include /usr/share/dpkg/pkg-info.mk
+
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+export DEB_LDFLAGS_MAINT_APPEND = -Wl,-O1 -Wl,--as-needed
+
+MANPAGES := debian/dh_girepository.1
+$(MANPAGES): debian/dh_girepository
+	pod2man -c "gobject-introspection" -r "$(DEB_VERSION)" $< $@
+
+%:
+	dh $@ --buildsystem=meson
+
+override_dh_auto_configure:
+	dh_auto_configure -- \
+		-Dgtk_doc=true \
+		-Dcairo=enabled \
+		-Ddoctool=enabled \
+		-Dpython=python3
+
+override_dh_auto_build: $(MANPAGES)
+	dh_auto_build
+
+override_dh_shlibdeps:
+	dh_shlibdeps
+	perl -w debian/dh_girepository -pgir1.2-glib-2.0
+	perl -w debian/dh_girepository -pgir1.2-freedesktop
+
+override_dh_makeshlibs:
+	dh_makeshlibs -- -c4
+
+override_dh_auto_clean:
+	dh_auto_clean
+	rm -rf $(MANPAGES)
+
+override_dh_python3:
+	dh_python3 -pgobject-introspection /usr/lib/$(DEB_HOST_MULTIARCH)/gobject-introspection/giscanner/
+	dh_python3
